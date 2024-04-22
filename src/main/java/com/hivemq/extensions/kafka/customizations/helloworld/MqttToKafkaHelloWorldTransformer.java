@@ -87,6 +87,33 @@ public class MqttToKafkaHelloWorldTransformer implements MqttToKafkaTransformer 
 
             // try to create the topic
             state = kafkaTopicService.createKafkaTopic(kafkaTopic);
+
+
+            // check again
+            KafkaTopicService.KafkaTopicState checkAgainState = kafkaTopicService.getKafkaTopicState(kafkaTopic);
+            if (checkAgainState == KafkaTopicService.KafkaTopicState.MISSING) {
+                log.info(
+                        "OMG, the Kafka topic '{}' does not exist on the Kafka cluster '{}'.",
+                        kafkaTopic,
+                        kafkaClusterId);
+            } else {
+                log.info(
+                        "Success, created the Kafka topic '{}' on the Kafka cluster '{}'. State: {}",
+                        kafkaTopic,
+                        kafkaClusterId,
+                        checkAgainState);
+            }
+
+            int waitTimeSeconds = 42;
+            log.info("Wait for " + waitTimeSeconds + " seconds");
+            try {
+                Thread.sleep(waitTimeSeconds * 1000); // in milliseconds
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            log.info(waitTimeSeconds + " seconds passed");
+
+
         }
 
         if (state == KafkaTopicService.KafkaTopicState.FAILURE) {
@@ -99,9 +126,9 @@ public class MqttToKafkaHelloWorldTransformer implements MqttToKafkaTransformer 
             return;
         }
 
-        if (log.isTraceEnabled()) {
-            log.trace("Pushing a new Kafka record to topic '{}' on cluster '{}'.", kafkaTopic, kafkaClusterId);
-        }
+        //if (log.isTraceEnabled()) {
+            log.info("Pushing a new Kafka record to topic '{}' on cluster '{}'.", kafkaTopic, kafkaClusterId);
+        //}
 
         // get a new Kafka record builder
         final KafkaRecordBuilder recordBuilder = mqttToKafkaOutput.newKafkaRecordBuilder()
