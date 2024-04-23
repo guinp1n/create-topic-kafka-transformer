@@ -104,14 +104,14 @@ public class MqttToKafkaHelloWorldTransformer implements MqttToKafkaTransformer 
                         checkAgainState);
             }
 
-            int waitTimeSeconds = 42;
+            /*int waitTimeSeconds = 1;
             log.info("Wait for " + waitTimeSeconds + " seconds");
             try {
                 Thread.sleep(waitTimeSeconds * 1000); // in milliseconds
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
-            log.info(waitTimeSeconds + " seconds passed");
+            log.info(waitTimeSeconds + " seconds passed");*/
 
 
         }
