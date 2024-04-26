@@ -88,32 +88,30 @@ public class MqttToKafkaHelloWorldTransformer implements MqttToKafkaTransformer 
             // try to create the topic
             state = kafkaTopicService.createKafkaTopic(kafkaTopic);
 
-
-            // check again
-            KafkaTopicService.KafkaTopicState checkAgainState = kafkaTopicService.getKafkaTopicState(kafkaTopic);
-            if (checkAgainState == KafkaTopicService.KafkaTopicState.MISSING) {
-                log.info(
-                        "OMG, the Kafka topic '{}' does not exist on the Kafka cluster '{}'.",
-                        kafkaTopic,
-                        kafkaClusterId);
-            } else {
-                log.info(
-                        "Success, created the Kafka topic '{}' on the Kafka cluster '{}'. State: {}",
-                        kafkaTopic,
-                        kafkaClusterId,
-                        checkAgainState);
-            }
-
-            /*int waitTimeSeconds = 1;
+            // sleep
+            int waitTimeSeconds = 1;
             log.info("Wait for " + waitTimeSeconds + " seconds");
             try {
                 Thread.sleep(waitTimeSeconds * 1000); // in milliseconds
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
-            log.info(waitTimeSeconds + " seconds passed");*/
+            log.info(waitTimeSeconds + " seconds passed");
 
-
+            // check again
+            KafkaTopicService.KafkaTopicState checkAgainState = kafkaTopicService.getKafkaTopicState(kafkaTopic);
+            if (checkAgainState == KafkaTopicService.KafkaTopicState.MISSING) {
+                log.info(
+                        "Oh, the Kafka topic '{}' still does not exist on the Kafka cluster '{}'.",
+                        kafkaTopic,
+                        kafkaClusterId);
+            } else {
+                log.info(
+                        "Success, created the Kafka topic '{}' on the Kafka cluster '{}'. State: {}.",
+                        kafkaTopic,
+                        kafkaClusterId,
+                        checkAgainState);
+            }
         }
 
         if (state == KafkaTopicService.KafkaTopicState.FAILURE) {
