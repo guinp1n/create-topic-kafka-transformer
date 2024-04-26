@@ -29,6 +29,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 /**
  * This example {@link MqttToKafkaTransformer} accepts an MQTT PUBLISH and tries to create a new Kafka record from it.
@@ -87,27 +89,8 @@ public class MqttToKafkaHelloWorldTransformer implements MqttToKafkaTransformer 
 
             // try to create the topic
             state = kafkaTopicService.createKafkaTopic(kafkaTopic);
+            log.info("Kafka new topic state: '{}'", state);
 
-            int maxAttempts = 3;
-            int attempt = 0;
-
-            while (attempt < maxAttempts) {
-                log.info(
-                        "Kafka topic state: '{}'",
-                        state);
-
-                state = kafkaTopicService.getKafkaTopicState(kafkaTopic);
-
-                // sleep for 500 ms before next attempt
-                try {
-                    Thread.sleep(500);
-                } catch (InterruptedException e) {
-                    log.error("Thread interrupted while sleeping: {}", e.getMessage());
-                    Thread.currentThread().interrupt();
-                }
-
-                attempt++;
-            }
         }
 
         if (state == KafkaTopicService.KafkaTopicState.FAILURE) {
@@ -120,24 +103,58 @@ public class MqttToKafkaHelloWorldTransformer implements MqttToKafkaTransformer 
             return;
         }
 
-        //if (log.isTraceEnabled()) {
+
+
+        // Define a CompletableFuture for the checking code
+        CompletableFuture<Void> checkingFuture = CompletableFuture.runAsync(() -> {
+            int maxAttempts = 3;
+            int attempt = 0;
+            KafkaTopicService.KafkaTopicState state2 = kafkaTopicService.getKafkaTopicState(kafkaTopic);
+
+            while (attempt < maxAttempts) {
+                log.info("Kafka topic state: '{}'", state2);
+
+                // sleep for 500 ms before next attempt
+                try {
+                    Thread.sleep(500);
+                } catch (InterruptedException e) {
+                    log.error("Thread interrupted while sleeping: {}", e.getMessage());
+                    Thread.currentThread().interrupt();
+                }
+
+                state2 = kafkaTopicService.getKafkaTopicState(kafkaTopic);
+                attempt++;
+            }
+        });
+
+// Perform the kafkaRecords setting in parallel with the checking code
+        CompletableFuture<Void> kafkaRecordsFuture = CompletableFuture.runAsync(() -> {
+            //if (log.isTraceEnabled()) {
             log.info("Pushing a new Kafka record to topic '{}' on cluster '{}'.", kafkaTopic, kafkaClusterId);
-        //}
+            //}
 
-        // get a new Kafka record builder
-        final KafkaRecordBuilder recordBuilder = mqttToKafkaOutput.newKafkaRecordBuilder()
-                // set the Kafka topic
-                .topic(kafkaTopic);
+            // get a new Kafka record builder
+            final KafkaRecordBuilder recordBuilder = mqttToKafkaOutput.newKafkaRecordBuilder()
+                    // set the Kafka topic
+                    .topic(kafkaTopic);
 
-        // copy the MQTT payload if present
-        publishPacket.getPayload().ifPresent(recordBuilder::value);
+            // copy the MQTT payload if present
+            publishPacket.getPayload().ifPresent(recordBuilder::value);
 
-        // convert MQTT user properties to Kafka header
-        publishPacket.getUserProperties()
-                .asList()
-                .forEach(userProperty -> recordBuilder.header(userProperty.getName(), userProperty.getValue()));
+            // convert MQTT user properties to Kafka header
+            publishPacket.getUserProperties()
+                    .asList()
+                    .forEach(userProperty -> recordBuilder.header(userProperty.getName(), userProperty.getValue()));
 
-        // build and set the Kafka record that the HiveMQ Enterprise Extension for Kafka will push
-        mqttToKafkaOutput.setKafkaRecords(List.of(recordBuilder.build()));
+            // build and set the Kafka record that the HiveMQ Enterprise Extension for Kafka will push
+            mqttToKafkaOutput.setKafkaRecords(List.of(recordBuilder.build()));
+        });
+
+// Wait for both futures to complete
+        try {
+            CompletableFuture.allOf(kafkaRecordsFuture, checkingFuture).get();
+        } catch (InterruptedException | ExecutionException e) {
+            log.error("An error occurred while waiting for futures to complete: {}", e.getMessage());
+        }
     }
 }
