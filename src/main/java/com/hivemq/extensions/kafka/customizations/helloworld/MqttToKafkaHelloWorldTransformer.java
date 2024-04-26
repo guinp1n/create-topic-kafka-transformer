@@ -88,29 +88,25 @@ public class MqttToKafkaHelloWorldTransformer implements MqttToKafkaTransformer 
             // try to create the topic
             state = kafkaTopicService.createKafkaTopic(kafkaTopic);
 
-            // sleep
-            int waitTimeSeconds = 1;
-            log.info("Wait for " + waitTimeSeconds + " seconds");
-            try {
-                Thread.sleep(waitTimeSeconds * 1000); // in milliseconds
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-            log.info(waitTimeSeconds + " seconds passed");
+            int maxAttempts = 3;
+            int attempt = 0;
 
-            // check again
-            KafkaTopicService.KafkaTopicState checkAgainState = kafkaTopicService.getKafkaTopicState(kafkaTopic);
-            if (checkAgainState == KafkaTopicService.KafkaTopicState.MISSING) {
+            while (attempt < maxAttempts) {
                 log.info(
-                        "Oh, the Kafka topic '{}' still does not exist on the Kafka cluster '{}'.",
-                        kafkaTopic,
-                        kafkaClusterId);
-            } else {
-                log.info(
-                        "Success, created the Kafka topic '{}' on the Kafka cluster '{}'. State: {}.",
-                        kafkaTopic,
-                        kafkaClusterId,
-                        checkAgainState);
+                        "Kafka topic state: '{}'",
+                        state);
+
+                state = kafkaTopicService.getKafkaTopicState(kafkaTopic);
+
+                // sleep for 500 ms before next attempt
+                try {
+                    Thread.sleep(500);
+                } catch (InterruptedException e) {
+                    log.error("Thread interrupted while sleeping: {}", e.getMessage());
+                    Thread.currentThread().interrupt();
+                }
+
+                attempt++;
             }
         }
 
